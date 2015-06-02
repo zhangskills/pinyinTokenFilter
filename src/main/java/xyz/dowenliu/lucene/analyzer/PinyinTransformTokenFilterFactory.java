@@ -15,7 +15,7 @@ public class PinyinTransformTokenFilterFactory extends TokenFilterFactory {
 
     private boolean isOutChinese = true; // 是否输出原中文开关
     private int minTermLength = 2; // 中文词组长度过滤，默认超过2位长度的中文才转换拼音
-    private boolean firstChar = false; // 拼音缩写开关，输出编写时不输出全拼音
+    private int type = 1; // 拼音类型，1 全拼，2 首字母，3 全部
 
     /**
      * 构造器
@@ -23,7 +23,7 @@ public class PinyinTransformTokenFilterFactory extends TokenFilterFactory {
     public PinyinTransformTokenFilterFactory(Map<String, String> args) {
         super(args);
         this.isOutChinese = getBoolean(args, "isOutChinese", true);
-        this.firstChar = getBoolean(args, "firstChar", false);
+        this.type = getInt(args, "type", 1);
         this.minTermLength = getInt(args, "minTermLength", 2);
         if (!args.isEmpty()) {
             throw new IllegalArgumentException("Unknown parameters: " + args);
@@ -31,7 +31,7 @@ public class PinyinTransformTokenFilterFactory extends TokenFilterFactory {
     }
 
     public TokenFilter create(TokenStream input) {
-        return new PinyinTransformTokenFilter(input, this.firstChar,
+        return new PinyinTransformTokenFilter(input, this.type,
                 this.minTermLength, this.isOutChinese);
     }
 }

@@ -23,7 +23,7 @@ import java.util.*;
 public class PinyinTransformTokenFilter extends TokenFilter {
 
     private boolean isOutChinese = true; // 是否输出原中文开关
-    private boolean firstChar = false; // 拼音缩写开关，输出编写时不输出全拼音
+    private int type = 1; // 拼音类型，1 全拼，2 首字母，3 全部
     private int _minTermLength = 2; // 中文词组长度过滤，默认超过2位长度的中文才转换拼音
 
     private HanyuPinyinOutputFormat outputFormat = new HanyuPinyinOutputFormat(); // 拼音转接输出格式
@@ -44,50 +44,30 @@ public class PinyinTransformTokenFilter extends TokenFilter {
      * @param input 词元输入
      */
     public PinyinTransformTokenFilter(TokenStream input) {
-        this(input, 2);
-    }
-
-    /**
-     * 构造器。默认转换为全拼音且保留原中文词元
-     *
-     * @param input         词元输入
-     * @param minTermLength 中文词组过滤长度
-     */
-    public PinyinTransformTokenFilter(TokenStream input, int minTermLength) {
-        this(input, false, minTermLength);
-    }
-
-    /**
-     * 构造器。默认长度超过2的中文词元进行转换，保留原中文词元
-     *
-     * @param input     词元输入
-     * @param firstChar 输出拼音缩写还是完整拼音
-     */
-    public PinyinTransformTokenFilter(TokenStream input, boolean firstChar) {
-        this(input, firstChar, 2);
+        this(input, 1, 2);
     }
 
     /**
      * 构造器。默认保留原中文词元
      *
      * @param input         词元输入
-     * @param firstChar     输出拼音缩写还是完整拼音
+     * @param type     输出拼音缩写还是完整拼音
      * @param minTermLength 中文词组过滤长度
      */
-    public PinyinTransformTokenFilter(TokenStream input, boolean firstChar,
+    public PinyinTransformTokenFilter(TokenStream input, int type,
             int minTermLength) {
-        this(input, firstChar, minTermLength, true);
+        this(input, type, minTermLength, true);
     }
 
     /**
      * 构造器
      *
      * @param input         词元输入
-     * @param firstChar     输出拼音缩写还是完整拼音
+     * @param type     输出拼音缩写还是完整拼音
      * @param minTermLength 中文词组过滤长度
      * @param isOutChinese  是否输入原中文词元
      */
-    public PinyinTransformTokenFilter(TokenStream input, boolean firstChar,
+    public PinyinTransformTokenFilter(TokenStream input, int type,
             int minTermLength, boolean isOutChinese) {
         super(input);
         this._minTermLength = minTermLength;
@@ -97,7 +77,7 @@ public class PinyinTransformTokenFilter extends TokenFilter {
         this.isOutChinese = isOutChinese;
         this.outputFormat.setCaseType(HanyuPinyinCaseType.LOWERCASE);
         this.outputFormat.setToneType(HanyuPinyinToneType.WITHOUT_TONE);
-        this.firstChar = firstChar;
+        this.type = type;
         addAttribute(OffsetAttribute.class); // 偏移量属性
     }
 
@@ -160,8 +140,15 @@ public class PinyinTransformTokenFilter extends TokenFilter {
                 //有中文且符合长度限制
                 try {
                     // 输出拼音（缩写或全拼）
-                    this.terms = this.firstChar ? getPyShort(chinese)
-                            : GetPyString(chinese);
+                    if (this.type == 1) {
+                        this.terms = GetPyString(chinese);
+                    }else if (this.type == 2) {
+                        this.terms = getPyShort(chinese);
+                    } else {
+                        Collection<String> list = GetPyString(chinese);
+                        list.addAll(getPyShort(chinese));
+                        this.terms = list;
+                    }
                     if (this.terms != null) {
                         this.termIte = this.terms.iterator();
                     }
@@ -175,7 +162,7 @@ public class PinyinTransformTokenFilter extends TokenFilter {
                     String pinyin = this.termIte.next();
                     this.termAtt.copyBuffer(pinyin.toCharArray(), 0, pinyin.length());
                     this.posIncrAtt.setPositionIncrement(0);
-                    this.typeAtt.setType(this.firstChar ? "short_pinyin" : "pinyin");
+                    this.typeAtt.setType("pinyin");
                     return true;
                 }
             }
