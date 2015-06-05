@@ -55,4 +55,15 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <repository>
+            <id>AcFun-Release</id>
+            <url>http://nexus.acfun.tv/nexus/content/repositories/AcFun-Release</url>
+        </repository>
+        <snapshotRepository>
+            <id>AcFun-Snapshot</id>
+            <url>http://nexus.acfun.tv/nexus/content/repositories/AcFun-Snapshot</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>
