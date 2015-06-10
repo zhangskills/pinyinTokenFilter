@@ -20,7 +20,7 @@ public class TestPinyinTransformTokenFilter extends BaseTokenStreamTestCase {
     @Before
     public void before() throws IOException {
         this.tokenizer = new MockTokenizer();
-        this.tokenizer.setReader(new StringReader("我们在一起"));
+        this.tokenizer.setReader(new StringReader("凪のあすから我们，。"));
     }
 
     @Test

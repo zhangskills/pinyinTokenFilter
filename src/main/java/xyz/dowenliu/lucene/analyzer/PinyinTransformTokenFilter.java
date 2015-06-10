@@ -146,7 +146,11 @@ public class PinyinTransformTokenFilter extends TokenFilter {
                         this.terms = getPyShort(chinese);
                     } else {
                         Collection<String> list = GetPyString(chinese);
-                        list.addAll(getPyShort(chinese));
+                        if (list == null) {
+                            list = getPyShort(chinese);
+                        } else {
+                            list.addAll(getPyShort(chinese));
+                        }
                         this.terms = list;
                     }
                     if (this.terms != null) {
