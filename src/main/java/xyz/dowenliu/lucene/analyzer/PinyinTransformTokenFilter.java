@@ -14,6 +14,8 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 拼音转换分词过滤器
@@ -107,7 +109,9 @@ public class PinyinTransformTokenFilter extends TokenFilter {
      * @return 是 {@code true} ；否 {@code false}
      */
     public static boolean isChinese(char a) {
-        return ((int) a >= 19968) && ((int) a <= 171941);
+        //[\u4E00-\u9FFF]
+        return a >= '\u4e00' && a <= '\u9fff';
+//        return ((int) a >= 19968) && ((int) a <= 171941);
     }
 
     /**
