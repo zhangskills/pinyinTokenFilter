@@ -1,10 +1,8 @@
 package xyz.dowenliu.lucene.analyzer;
 
-import net.sourceforge.pinyin4j.PinyinHelper;
-import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
-import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
-import net.sourceforge.pinyin4j.format.exception.BadHanyuPinyinOutputFormatCombination;
+import com.hankcs.hanlp.HanLP;
+import com.hankcs.hanlp.corpus.util.StringUtils;
+import com.hankcs.hanlp.dictionary.py.Pinyin;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -27,8 +25,6 @@ public class PinyinTransformTokenFilter extends TokenFilter {
     private boolean isOutChinese = true; // 是否输出原中文开关
     private int type = 1; // 拼音类型，1 全拼，2 首字母，3 全部
     private int _minTermLength = 2; // 中文词组长度过滤，默认超过2位长度的中文才转换拼音
-
-    private HanyuPinyinOutputFormat outputFormat = new HanyuPinyinOutputFormat(); // 拼音转接输出格式
 
     private char[] curTermBuffer; // 底层词元输入缓存
     private int curTermLength; // 底层词元输入长度
@@ -77,8 +73,6 @@ public class PinyinTransformTokenFilter extends TokenFilter {
             this._minTermLength = 1;
         }
         this.isOutChinese = isOutChinese;
-        this.outputFormat.setCaseType(HanyuPinyinCaseType.LOWERCASE);
-        this.outputFormat.setToneType(HanyuPinyinToneType.WITHOUT_TONE);
         this.type = type;
         addAttribute(OffsetAttribute.class); // 偏移量属性
     }
@@ -108,10 +102,26 @@ public class PinyinTransformTokenFilter extends TokenFilter {
      * @param a 待测字符
      * @return 是 {@code true} ；否 {@code false}
      */
-    public static boolean isChinese(char a) {
-        //[\u4E00-\u9FFF]
-        return a >= '\u4e00' && a <= '\u9fff';
-//        return ((int) a >= 19968) && ((int) a <= 171941);
+    private static boolean isChinese(char a) {
+        return a >= '\u4e00' && a <= '\u9fa5';
+    }
+
+    private String getPinyin(String text, boolean isFirst) {
+        String temp = text;
+        Pattern p = Pattern.compile("[\u4e00-\u9fa5]+");
+        Matcher m = p.matcher(temp);
+        while (m.find()) {
+            String s = m.group();
+            String pinyin;
+            if (isFirst) {
+                pinyin = HanLP.convertToPinyinFirstCharString(s, "", false);
+            } else {
+                pinyin = HanLP.convertToPinyinString(s, "", false);
+            }
+            temp = temp.replaceAll(s, pinyin);
+            m = p.matcher(temp);
+        }
+        return temp;
     }
 
     /**
@@ -133,8 +143,7 @@ public class PinyinTransformTokenFilter extends TokenFilter {
                 // 准许输出原中文词元且当前没有输出原输入词元且还没有处理拼音结果集
                 this.hasCurOut = true; // 标记以保证下次循环不会输出
                 // 写入原输入词元
-                this.termAtt.copyBuffer(this.curTermBuffer, 0,
-                        this.curTermLength);
+                this.termAtt.copyBuffer(this.curTermBuffer, 0, this.curTermLength);
                 this.posIncrAtt.setPositionIncrement(this.posIncrAtt.getPositionIncrement());
                 return true; // 继续
             }
@@ -142,26 +151,22 @@ public class PinyinTransformTokenFilter extends TokenFilter {
             // 拼音处理
             if (chineseCharCount(chinese) >= this._minTermLength) {
                 //有中文且符合长度限制
-                try {
-                    // 输出拼音（缩写或全拼）
-                    if (this.type == 1) {
-                        this.terms = GetPyString(chinese);
-                    }else if (this.type == 2) {
-                        this.terms = getPyShort(chinese);
-                    } else {
-                        Collection<String> list = GetPyString(chinese);
-                        if (list == null) {
-                            list = getPyShort(chinese);
-                        } else {
-                            list.addAll(getPyShort(chinese));
-                        }
-                        this.terms = list;
+                this.terms = new HashSet<>();
+
+                if (this.type == 1 || this.type == 3) {
+                    String pinyin = getPinyin(chinese, true);
+                    if (!StringUtils.isBlankOrNull(pinyin)) {
+                        this.terms.add(pinyin);
                     }
-                    if (this.terms != null) {
-                        this.termIte = this.terms.iterator();
+                }
+                if (this.type == 2 || this.type == 3) {
+                    String pinyin = getPinyin(chinese, false);
+                    if (!StringUtils.isBlankOrNull(pinyin)) {
+                        this.terms.add(pinyin);
                     }
-                } catch (BadHanyuPinyinOutputFormatCombination badHanyuPinyinOutputFormatCombination) {
-                    badHanyuPinyinOutputFormatCombination.printStackTrace();
+                }
+                if (this.terms != null && !this.terms.isEmpty()) {
+                    this.termIte = this.terms.iterator();
                 }
 
             }
@@ -182,78 +187,4 @@ public class PinyinTransformTokenFilter extends TokenFilter {
         }
     }
 
-    /**
-     * 获取拼音缩写
-     *
-     * @param chinese 含中文的字符串，若不含中文，原样输出
-     * @return 转换后的文本
-     * @throws BadHanyuPinyinOutputFormatCombination
-     */
-    private Collection<String> getPyShort(String chinese)
-            throws BadHanyuPinyinOutputFormatCombination {
-        List<String[]> pinyinList = new ArrayList<>();
-        for (int i = 0; i < chinese.length(); i++) {
-            String[] pinyinArray = PinyinHelper.toHanyuPinyinStringArray(
-                    chinese.charAt(i), this.outputFormat);
-            if (pinyinArray != null && pinyinArray.length > 0) {
-                pinyinList.add(pinyinArray);
-            }
-        }
-        Set<String> pinyins = new HashSet<>();
-        for (String[] array : pinyinList) {
-            if (pinyins.isEmpty()) {
-                for (String charPinpin : array) {
-                    pinyins.add(charPinpin.substring(0, 1));
-                }
-            } else {
-                Set<String> pres = pinyins;
-                pinyins = new HashSet<>();
-                for (String pre : pres) {
-                    for (String charPinyin : array) {
-                        pinyins.add(pre + charPinyin.substring(0, 1));
-                    }
-                }
-            }
-        }
-        return pinyins;
-    }
-
-    public void reset() throws IOException {
-        super.reset();
-    }
-
-    /**
-     * 获取拼音
-     *
-     * @param chinese 含中文的字符串，若不含中文，原样输出
-     * @return 转换后的文本
-     * @throws BadHanyuPinyinOutputFormatCombination
-     */
-    private Collection<String> GetPyString(String chinese)
-            throws BadHanyuPinyinOutputFormatCombination {
-        List<String[]> pinyinList = new ArrayList<>();
-        for (int i = 0; i < chinese.length(); i++) {
-            String[] pinyinArray = PinyinHelper.toHanyuPinyinStringArray(
-                    chinese.charAt(i), this.outputFormat);
-            if (pinyinArray != null && pinyinArray.length > 0) {
-                pinyinList.add(pinyinArray);
-            }
-        }
-        Set<String> pinyins = null;
-        for (String[] array : pinyinList) {
-            if (pinyins == null || pinyins.isEmpty()) {
-                pinyins = new HashSet<>();
-                Collections.addAll(pinyins, array);
-            } else {
-                Set<String> pres = pinyins;
-                pinyins = new HashSet<>();
-                for (String pre : pres) {
-                    for (String charPinyin : array) {
-                        pinyins.add(pre + charPinyin);
-                    }
-                }
-            }
-        }
-        return pinyins;
-    }
 }
