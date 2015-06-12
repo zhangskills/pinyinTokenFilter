@@ -2,7 +2,6 @@ package xyz.dowenliu.lucene.analyzer;
 
 import com.hankcs.hanlp.HanLP;
 import com.hankcs.hanlp.corpus.util.StringUtils;
-import com.hankcs.hanlp.dictionary.py.Pinyin;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -11,7 +10,9 @@ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
